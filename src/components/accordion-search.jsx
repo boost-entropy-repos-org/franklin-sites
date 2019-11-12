@@ -1,10 +1,55 @@
-import React, { useState, useEffect, Fragment } from 'react';
+/* eslint-disable react/prop-types */
+import React, {
+  useState, useEffect, Fragment, memo,
+} from 'react';
 import PropTypes from 'prop-types';
-import Accordion from './accordion';
 import SearchInput from './search-input';
 import Loader from './loader';
-import { getLastIndexOfSubstringIgnoreCase, highlightSubstring } from '../utils';
+import {
+  getLastIndexOfSubstringIgnoreCase,
+  highlightSubstring,
+  serializableDeepAreEqual,
+} from '../utils';
+import Accordion from './accordion';
 import '../styles/components/accordion-search.scss';
+
+const areEqual = (prevProps, nextProps) =>
+  serializableDeepAreEqual(prevProps.items, nextProps.items)
+  && serializableDeepAreEqual(prevProps.selected, nextProps.selected);
+// && serializableDeepAreEqual(prevProps.title, nextProps.title);
+const AccordionSearchItem = memo(
+  ({
+    title, alwaysOpen, items, selected, columns, onSelect, id,
+  }) => (
+    <Accordion title={title} count={selected.length} alwaysOpen={alwaysOpen}>
+      <ul
+        className={`no-bullet accordion-search__list${
+          columns ? ' accordion-search__list--columns' : ''
+        }`}
+      >
+        {items.map(({ label, id: itemId }) => (
+          <li
+            key={`li-${itemId}`}
+            className="accordion-search__list__item"
+            data-testid="accordion-search-list-item"
+          >
+            <label key={itemId} htmlFor={`checkbox-${itemId}`}>
+              <input
+                type="checkbox"
+                id={`checkbox-${itemId}`}
+                className="accordion-search__list__item-checkbox"
+                onChange={() => onSelect(id, itemId)}
+                checked={selected.some(item => item.itemId === itemId)}
+              />
+              {label}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </Accordion>
+  ),
+  areEqual,
+);
 
 const highlightItems = (items, query) =>
   items.map(item => ({ ...item, label: highlightSubstring(item.label, query) }));
@@ -13,31 +58,27 @@ export const filterAccordionData = (accordionData, query) => {
   if (!query) {
     return accordionData;
   }
-  const filteredAccordionData = accordionData.reduce(
-    (filteredAccordionDataAccum, accordionDatum) => {
-      const { items, title } = accordionDatum;
-      if (getLastIndexOfSubstringIgnoreCase(title, query) >= 0) {
+  return accordionData.reduce((filteredAccordionDataAccum, accordionDatum) => {
+    const { items, title } = accordionDatum;
+    if (getLastIndexOfSubstringIgnoreCase(title, query) >= 0) {
+      filteredAccordionDataAccum.push({
+        ...accordionDatum,
+        title, // highlightSubstring(title, query),
+        items: highlightItems(items, query),
+      });
+    } else {
+      const filteredItems = items.filter(
+        ({ label }) => getLastIndexOfSubstringIgnoreCase(label, query) >= 0,
+      );
+      if (filteredItems.length > 0) {
         filteredAccordionDataAccum.push({
           ...accordionDatum,
-          title: highlightSubstring(title, query),
-          items: highlightItems(items, query),
+          items: highlightItems(filteredItems, query),
         });
-      } else {
-        const filteredItems = items.filter(
-          ({ label }) => getLastIndexOfSubstringIgnoreCase(label, query) >= 0,
-        );
-        if (filteredItems.length > 0) {
-          filteredAccordionDataAccum.push({
-            ...accordionDatum,
-            items: highlightItems(filteredItems, query),
-          });
-        }
       }
-      return filteredAccordionDataAccum;
-    },
-    [],
-  );
-  return filteredAccordionData;
+    }
+    return filteredAccordionDataAccum;
+  }, []);
 };
 
 const AccordionSearch = ({
@@ -50,7 +91,6 @@ const AccordionSearch = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [filteredAccordionData, setFilteredAccordionData] = useState([]);
-
   useEffect(() => {
     const filteredData = filterAccordionData(accordionData, inputValue.trim());
     setFilteredAccordionData(filteredData);
@@ -63,42 +103,18 @@ const AccordionSearch = ({
   if (filteredAccordionData && filteredAccordionData.length) {
     accordionGroupNode = (
       <div className="accordion-group accordion-search">
-        {filteredAccordionData.map(({ title, id: accordionId, items }) => {
-          const accordionSelected = selected.filter(item => item.accordionId === accordionId);
-          return (
-            <Accordion
-              title={title}
-              key={accordionId}
-              count={accordionSelected.length}
-              alwaysOpen={!!inputValue}
-            >
-              <ul
-                className={`no-bullet accordion-search__list${
-                  columns ? ' accordion-search__list--columns' : ''
-                }`}
-              >
-                {items.map(({ label, id: itemId }) => (
-                  <li
-                    key={itemId}
-                    className="accordion-search__list__item"
-                    data-testid="accordion-search-list-item"
-                  >
-                    <label key={itemId} htmlFor={`checkbox-${itemId}`}>
-                      <input
-                        type="checkbox"
-                        id={`checkbox-${itemId}`}
-                        className="accordion-search__list__item-checkbox"
-                        onChange={() => onSelect(accordionId, itemId)}
-                        checked={accordionSelected.some(item => item.itemId === itemId)}
-                      />
-                      {label}
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </Accordion>
-          );
-        })}
+        {filteredAccordionData.map(({ title, id: accordionId, items }) => (
+          <AccordionSearchItem
+            title={title}
+            key={accordionId}
+            id={accordionId}
+            alwaysOpen={!!inputValue}
+            items={items}
+            selected={selected.filter(item => item.accordionId === accordionId)}
+            columns={columns}
+            onSelect={onSelect}
+          />
+        ))}
       </div>
     );
   }
@@ -148,7 +164,7 @@ AccordionSearch.propTypes = {
   /**
    * Array of the selected items' IDs
    */
-  selected: PropTypes.arrayOf(PropTypes.string).isRequired,
+  selected: PropTypes.arrayOf(PropTypes.object).isRequired,
   /**
    * The width of the text input box
    */

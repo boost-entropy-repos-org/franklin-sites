@@ -6,6 +6,7 @@ import FranklinSite from '../components/franklin-site';
 import Atoms from './Atoms';
 import UIComponents from './UIComponents';
 import DataViews from './DataViews';
+import AccordionSearchTest from './AccordionSearchTest';
 
 const App = () => (
   <FranklinSite>
@@ -14,6 +15,7 @@ const App = () => (
         <Route path="/" exact render={() => <Redirect to="/atoms" />} />
         <Route path="/atoms" component={Atoms} />
         <Route path="/ui-components" component={UIComponents} />
+        <Route path="/accordion-search-test" component={AccordionSearchTest} />
         <Route path="/data-views" component={DataViews} />
       </Fragment>
     </Router>
