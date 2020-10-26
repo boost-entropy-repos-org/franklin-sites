@@ -1,10 +1,15 @@
-import React, { Fragment } from 'react';
+import React from 'react';
+
 import { action } from '@storybook/addon-actions';
+import { withKnobs, boolean, number, select } from '@storybook/addon-knobs';
+
 import { Message } from '../src/components';
+
 import { getLipsumSentences } from '../src/mock-data/lipsum';
 
 export default {
   title: 'Layout/Message',
+  decorators: [withKnobs()],
   parameters: {
     purposeFunction: {
       function:
@@ -15,33 +20,43 @@ export default {
   },
 };
 
-export const defaultMessage = () => (
-  <Message onDismiss={action('Dismiss')}>{getLipsumSentences()}</Message>
-);
-export const warningMessage = () => (
-  <Message level="warning">{getLipsumSentences()}</Message>
-);
-export const failureMessage = () => (
-  <Message level="failure">{getLipsumSentences()}</Message>
-);
-export const successMessage = () => (
-  <Message level="success">{getLipsumSentences()}</Message>
-);
-
 const subtitle = (
-  <Fragment>
-    Try using <a href="#">BLAST</a>, <a href="#">Align</a>
-    , <a href="#">ID Mapping/Retrieve</a> or{' '}
+  <>
+    Try using <a href="#">BLAST</a>, <a href="#">Align</a>,{' '}
+    <a href="#">ID Mapping/Retrieve</a> or{' '}
     <a href="#">Peptide Search to begin</a>
-  </Fragment>
+  </>
 );
 
-export const forFullPageErrors = () => (
-  <Message
-    level="warning"
-    subtitle={subtitle}
-    forFullPage
-  >
-    {getLipsumSentences()}
-  </Message>
-);
+export const message = () => {
+  const forFullPage = boolean('forFullPage', false, 'Props');
+  const noIcon = boolean('noIcon', false, 'Props');
+  const noShadow = boolean('noShadow', false, 'Props');
+  const dismissible = boolean('dismissible', true, 'Not direct props');
+  const withSubtitle = boolean('with subtitle', false, 'Not direct props');
+  const numberOfParagraphs = number(
+    'number of paragraphs',
+    1,
+    undefined,
+    'Not direct props'
+  );
+  return (
+    <Message
+      onDismiss={dismissible ? action('Dismiss') : undefined}
+      level={select(
+        'level',
+        ['warning', 'failure', 'success', 'info'],
+        'info',
+        'Props'
+      )}
+      subtitle={withSubtitle ? subtitle : undefined}
+      forFullPage={forFullPage}
+      noIcon={noIcon}
+      noShadow={noShadow}
+    >
+      {Array.from({ length: numberOfParagraphs }, (_, i) => (
+        <div key={i}>{getLipsumSentences()}</div>
+      ))}
+    </Message>
+  );
+};
